@@ -1,29 +1,29 @@
 
 # Intro
-So for many years people have been hooking direct x by overlays provided by 3rd party companys to avoid hookinf the native direct x. In this ill show u can obtain these dynamically rather then staticly revsering DiscordHook64.dll or overlay64.dll for there functions that may change update to update. 
+So for many years people have been hooking Direct X by overlays provided by 3rd party companys to avoid hooking the native Direct X. In this ill show u can obtain these dynamically rather then staticly revsering DiscordHook64.dll or overlay64.dll for their functions that may change update to update. 
 
-(Note this will be focusing on dx12)
+(Note: this will focus on DX12)
 
 # Setup
-in this tutorial I will be using a modifyed D3D12-Hook to fit my coding style as a base for my dx12 hook. For my hooking libary I rather differ from minhook and use safetyhook as it gives me more control over the stack and registers
+In this tutorial, I will be using a modified D3D12-Hook to fit my coding style as a base for my DX12 hook. For my hooking library, I rather differ from minhook to safetyhook as it gives me more control over the stack and registers
 
 D3D12-Hook
 - https://github.com/DrNseven/D3D12-Hook-ImGui
-Hooking libary
+Hooking library
 - https://github.com/cursey/safetyhook
 
 # The Initial Idea for getting Present
-Rather than coppy and pasting code ill show u the thought process.
+Rather than copying and pasting code ill show u the thought process.
 
 ## Understanding how overlays work
 
 - DiscordHook64.dll - discords overlay
 - overlay64.dll - Ubisoft's overlay
 
-These are both ovelays that display infomation over the game process in order to do this they must intract with the game. SO HOW? they load [dynamic link library's](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-libraries). This gives them the context to run in the games memory and intract with its rending system in order to render an fast overlay optimally.
+These are both overlays that display information over the game process. In order to do this, they must interact with the game. SO HOW? they load [dynamic link library's](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-libraries). This gives them the context to run in the game's memory and interact with its rendering system in order to render a fast overlay optimally.
 
-Now in order for them to intercept the render q they hook the [Present function in dx12](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present)
-. This is achieved thru using [microsoft detours libary](https://github.com/microsoft/Detours) that internally uses inline hooks (aka trampoline hooks) meaning 
+Now in order for them to intercept the render queue, they hook the [Present function in dx12](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present)
+. This is achieved through using [microsoft detours libary](https://github.com/microsoft/Detours) that internally uses inline hooks (aka trampoline hooks) meaning 
 
 Example:
 Let’s say the target function starts like this:
@@ -46,7 +46,7 @@ E9 <rel32>
 - <rel32> is a signed 4-byte offset from the next instruction.
 - Total size = 5 bytes.
 
-With this knowlage we can follow the jmp in c++
+With this knowledge, we can follow the jmp in C++
 ```c++
     // Skips the first byte (E9) to read the next 4 bytes.
     int32_t relOffset = *reinterpret_cast<int32_t*>(instructionAddress + 1);
@@ -59,7 +59,7 @@ With this knowlage we can follow the jmp in c++
 This works because the jump offset is relative to the instruction after the jmp. By adding the offset to the address immediately following the instruction, you get the actual destination of the jump. This is the same way the cpu would do it.
 
 # Putting the idea into action
-Now by using kiero libary we can dynamically get the offset for dx12's Present already and log it out
+Now, by using the Kiero library, we can dynamically get the offset for DX12's Present already and log it out
 
 ```c++
 //add this to d3d12hook.h
@@ -78,18 +78,16 @@ void* _54 = getMethodByIndex(54);
 printf("[54] ExecuteCommandLists: %p \n", _54);
 ```
 
-We should get somthing like this when we run the code
+We should get something like this when we run the code
 ```c++
 [-] _140: 00007FFFB2472A20
 [-] _54: 00007FFEA08B6AC0
 ```
-Open the addres of _140 in cheat engine and right click "disassemble this memory region" we should see the E9 as expected
+Open the address of _140 in Cheat Engine and right-click "disassemble this memory region" We should see the E9 as expected
 
-![cheat engine](img/Screenshot 2025-08-06 000343.png)
+We can see that Cheat Engine helpfully shows us what module this leads to being overlay64.dll. Now right-click it and press follow 2 times, and u end up in the overlay64.dll module. This is the hook Ubisoft uses for an overlay.
 
-We can see that cheat engine helpfully shows us what module this leads to being overlay64.dll . Now right click it and press follow 2 times and u end up in the overlay64.dll module this is the hook Ubisoft uses for an overlay.
-
-The first jump u may of noticed u was taken to a padding regoin these use a diffrant calling convtion with the op code FF 25
+The first jump u may have noticed, u was taken to a padding region. These use a different calling convention with the op code FF 25
 
 That instruction format:
 
@@ -108,7 +106,7 @@ uintptr_t resolveIndirectJmp(uintptr_t address) {
 }
 ```
 
-Now we can make the functions to loop thru all the jump's and get an vaild one by checking that we dont go into a padding region.
+Now we can make the functions to loop through all the jumps and get a valid one by checking that we don't go into a padding region.
 
 ```c++
 uintptr_t resolveJump(uintptr_t address) {
@@ -176,10 +174,13 @@ uintptr_t resolveJumpIfValid(uintptr_t address, int loop = 99) {
 
 # Result
 
-When combined with a basic hook on ExecuteCommandLists for now
+When combined with a basic hook on ExecuteCommandLists for now 
 
-![cheat engine](img/Screenshot 2025-08-06 013554.png)
+![cheat engine](https://github.com/TheRealJoelmatic/dx12-discord-hook/blob/main/img/Screenshot%202025-08-06%20013554.png?raw=true)
 
-Boom we have hooked Ubisofts overlay with 0 sig or offsets that could change and this will working with any other overlay. (Some overlays will be sigged by anticheats so look in ida pro for functions that the found overlay calles with a vaild SwapChain)
+Boom, we have hooked Ubisoft's overlay with 0 sig or offsets that could change, and this will work with any other overlay. (Some overlays will be signed by anticheats, so look in IDA Pro for functions that the found overlay calls with a vaild SwapChain)
 
-Now your wondering is there an better way to get the CommandQueue from the ExecuteCommandLists without such an easily dectable hook on ExecuteCommandLists?
+Now you're wondering whether there is a better way to get the CommandQueue from the ExecuteCommandLists without such an easily detectable hook on ExecuteCommandLists?
+- yes
+
+One of the best ways is to simply find the current address for ID3D12CommandQueue* queue and scan for all locations referencing it. In the case of r6, there are spots in the .data section that can be sig scanned for and read to achieve this.
