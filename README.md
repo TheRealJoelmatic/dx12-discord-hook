@@ -85,6 +85,8 @@ We should get something like this when we run the code
 ```
 Open the address of _140 in Cheat Engine and right-click "disassemble this memory region" We should see the E9 as expected
 
+![cheat engine](https://github.com/TheRealJoelmatic/dx12-discord-hook/blob/main/img/Screenshot%202025-08-06%20000343.png?raw=true)
+
 We can see that Cheat Engine helpfully shows us what module this leads to being overlay64.dll. Now right-click it and press follow 2 times, and u end up in the overlay64.dll module. This is the hook Ubisoft uses for an overlay.
 
 The first jump u may have noticed, u was taken to a padding region. These use a different calling convention with the op code FF 25
